@@ -1,0 +1,67 @@
+SessionForge - how to run it after cloning the repo
+====================================================
+
+Requirements
+------------
+- Windows 10 version 1809 or newer, or Windows 11 (64-bit). The app is Windows-only (WPF).
+- Git.
+- .NET 8 SDK (not just the runtime).
+    winget install Microsoft.DotNet.SDK.8
+  Close and reopen your terminal afterwards so "dotnet" is on PATH.
+  Check with:  dotnet --version   (should print 8.x)
+- Internet access on the first build (NuGet restores packages).
+
+1. Get the code
+---------------
+    git clone <repo-url> SessionForge
+    cd SessionForge
+(If the repo root is a parent folder, cd into the folder that contains SessionForge.sln.)
+
+2. Build
+--------
+    dotnet build SessionForge.sln -c Release
+
+The solution includes its own nuget.config, so no extra setup is needed.
+
+3. Run
+------
+    dotnet run --project src/SessionForge.App -c Release
+
+Or start the built exe directly:
+    src\SessionForge.App\bin\Release\net8.0-windows10.0.17763.0\SessionForge.exe
+
+First launch: the home screen appears. Use "+ Session" (or the Quick connect box, e.g.
+user@host:22) to add a connection. The vault is optional; set it up from the lock icon
+if you want saved passwords and keys.
+
+4. Run the tests (optional)
+---------------------------
+    dotnet test SessionForge.sln
+
+Unit tests run anywhere. The SSH integration tests are skipped unless a test SSH server is
+available. To run them against a local OpenSSH server (needs the Windows OpenSSH Server
+feature or Win32-OpenSSH installed):
+    powershell -ExecutionPolicy Bypass -File tools\run-integration-tests.ps1
+
+5. Make a distributable build (optional)
+----------------------------------------
+    powershell -ExecutionPolicy Bypass -File tools\publish.ps1
+
+Output: artifacts\SessionForge-win-x64\SessionForge.exe (self-contained, no .NET install
+needed on the target machine, about 190 MB).
+
+Where data is stored
+--------------------
+Settings, sessions, vault, known hosts and logs live in a per-user folder: %APPDATA%\SessionForge.
+To use a separate scratch location, set an environment variable before launching:
+    $env:SESSIONFORGE_HOME = "C:\temp\sf-test"      (PowerShell)
+    set SESSIONFORGE_HOME=C:\temp\sf-test           (cmd)
+
+Troubleshooting
+---------------
+- "dotnet is not recognized": reopen the terminal, or add C:\Program Files\dotnet to PATH.
+- Restore/NuGet errors: make sure you run commands from the folder containing
+  SessionForge.sln, so the bundled nuget.config is used.
+- Build fails with "file is locked": close any running SessionForge.exe and rebuild.
+- RDP tabs use the Windows Remote Desktop client (mstscax.dll), which ships with Windows.
+- See docs\STATUS.md for what is verified and what is not.

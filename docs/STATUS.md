@@ -4,8 +4,8 @@ Legend: **Verified** = exercised in this environment (automated test or driven i
 **Implemented** = code complete and builds, but not exercised against a real counterpart.
 **Missing** = not implemented.
 
-Test results at last run: 110 unit tests pass, 8 SSH integration tests pass against a real
-Win32-OpenSSH `sshd` on 127.0.0.1:2222 (they skip when no server is configured).
+Test results at last run: 114 tests pass with 10 skipped (the SSH integration tests, which need a server).
+With `tools/run-integration-tests.ps1` all 10 SSH integration tests pass against a real Win32-OpenSSH `sshd`.
 
 | Area | Status | Notes |
 |---|---|---|
@@ -16,22 +16,28 @@ Win32-OpenSSH `sshd` on 127.0.0.1:2222 (they skip when no server is configured).
 | SSH: TOFU host-key verification and change warning | Verified | Integration test and GUI dialog |
 | SSH: jump-host chain | Verified | Integration test (local forward chain) |
 | SSH: port forwarding (local, dynamic/SOCKS) | Verified | Integration test |
-| SSH: remote port forwarding | Implemented | Not covered by a test |
-| SSH: agent auth (OpenSSH pipe, Pageant) | Implemented | Not tested against a running agent |
+| SSH: remote port forwarding | Verified | Integration test |
+| SSH: agent auth via OpenSSH named pipe | Verified | Integration test against a minimal in-process agent (the real ssh-agent service is disabled here); this found and fixed a pipe-detection bug |
+| SSH: agent auth via Pageant | Implemented | Not tested |
 | SSH: proxy (HTTP/SOCKS) | Implemented | Not tested against a proxy |
 | SFTP browser, transfers, chmod | Verified | Integration tests and GUI panel |
 | Credential vault (AES-256-GCM, Argon2id, optional DPAPI) | Verified | Unit tests |
 | OpenSSH key generation / import (incl. encrypted keys) | Verified | Unit tests |
 | Session logging | Verified | Unit tests |
 | Macros / automation | Verified | Unit tests; runner lightly tested live |
-| Telnet, raw TCP | Implemented | Protocol unit tests; no live server |
+| Telnet, raw TCP | Verified (loopback) | Live tests against in-process servers; not tested against real telnet devices |
 | Serial | Implemented | No hardware available |
-| VNC (RFB client) | Implemented | Protocol code only; not run against a VNC server |
+| VNC (RFB client) | Partially verified | Handshake, VNC password auth (accept/reject) and Raw decoding tested against an in-process RFB server. ZRLE/Hextile/RRE/CopyRect and the VNC tab UI are untested against a real server |
 | RDP (mstscax ActiveX) | Partially verified | Control creates and connects; the real mstsc client reported a genuine server-side error on loopback. No RDP host is available here, so a full desktop session was never seen |
 | Import: PuTTY, ssh_config | Verified | Unit tests |
 | X11 forwarding, SSH agent forwarding | Missing | |
 | Shared/collaborative sessions, printing | Missing | |
 | Installer / signed binaries | Missing | `tools/publish.ps1` produces a self-contained folder only |
+
+## Next steps (not done)
+
+- Real-server checks for VNC encodings, serial hardware, Pageant, proxies and a full RDP desktop.
+- X11 and agent forwarding; installer and code signing; accessibility review; multi-DPI visual pass.
 
 ## Known gaps
 

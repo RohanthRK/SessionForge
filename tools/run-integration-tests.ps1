@@ -55,6 +55,9 @@ PidFile $cfgDir\sshd.pid
 "@
 [IO.File]::WriteAllText((Join-Path $cfgDir 'sshd_config'), $config)
 
+if (Get-Process sshd -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "$WorkDir*" }) {
+    Get-Process sshd | Where-Object { $_.Path -like "$WorkDir*" } | Stop-Process -Force   # stale instance from a previous run
+}
 $sshd = Start-Process (Join-Path $bin 'sshd.exe') -ArgumentList @('-D', '-e', '-f', "`"$cfgDir\sshd_config`"") `
     -RedirectStandardError (Join-Path $cfgDir 'sshd.log') -PassThru -WindowStyle Hidden
 try {

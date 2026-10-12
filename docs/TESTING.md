@@ -7,4 +7,7 @@
 - GUI checks were done by launching the app with `SESSIONFORGE_HOME` pointing at a scratch folder and capturing
   screenshots (home, local terminal, session editor, host-key dialog, SFTP, split panes, multi-exec, RDP error path).
 
-Not covered: VNC against a real server, serial hardware, agent/Pageant auth, proxies, a full RDP desktop session.
+Also covered by loopback tests: raw TCP and Telnet transports, and the RFB client against an in-process server.
+
+Not covered: VNC against a real server (compressed encodings), serial hardware, Pageant auth, proxies,
+a full RDP desktop session.

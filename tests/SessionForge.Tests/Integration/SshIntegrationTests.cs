@@ -282,6 +282,103 @@ public sealed class SshIntegrationTests : IDisposable
         finally { listener.Stop(); }
     }
 
+    /// <summary>
+    /// Authenticates through the Windows OpenSSH agent named pipe, served here by a minimal in-process agent
+    /// (the real ssh-agent service may be disabled). Skipped if something already owns the pipe.
+    /// </summary>
+    [SkippableFact]
+    public async Task AgentAuthenticationThroughNamedPipe()
+    {
+        RequireServer();
+        Skip.If(File.Exists(@"\\.\pipe\openssh-ssh-agent"), "A real SSH agent already owns the pipe.");
+        var alg = new Renci.SshNet.PrivateKeyFile(_key!).HostKeyAlgorithms.First();
+        using var cts = new CancellationTokenSource();
+        int signRequests = 0;
+
+        static byte[] Frame(params byte[][] parts)
+        {
+            var body = parts.SelectMany(p => p).ToArray();
+            var f = new byte[body.Length + 4];
+            BinaryPrimitives.WriteUInt32BigEndian(f, (uint)body.Length);
+            body.CopyTo(f, 4);
+            return f;
+        }
+        static byte[] Str(byte[] b) { var r = new byte[b.Length + 4]; BinaryPrimitives.WriteUInt32BigEndian(r, (uint)b.Length); b.CopyTo(r, 4); return r; }
+        static byte[] U32(uint v) { var r = new byte[4]; BinaryPrimitives.WriteUInt32BigEndian(r, v); return r; }
+
+        var agentTask = Task.Run(async () =>
+        {
+            while (!cts.IsCancellationRequested)
+            {
+                await using var server = new System.IO.Pipes.NamedPipeServerStream("openssh-ssh-agent", System.IO.Pipes.PipeDirection.InOut, 4, System.IO.Pipes.PipeTransmissionMode.Byte, System.IO.Pipes.PipeOptions.Asynchronous);
+                try { await server.WaitForConnectionAsync(cts.Token); } catch (OperationCanceledException) { return; }
+                try
+                {
+                    var len = new byte[4]; await server.ReadExactlyAsync(len);
+                    var msg = new byte[BinaryPrimitives.ReadUInt32BigEndian(len)]; await server.ReadExactlyAsync(msg);
+                    byte[] reply;
+                    if (msg[0] == 11) reply = Frame([12], U32(1), Str(alg.Data), Str("test-key"u8.ToArray()));
+                    else if (msg[0] == 13)
+                    {
+                        int keyLen = (int)BinaryPrimitives.ReadUInt32BigEndian(msg.AsSpan(1));
+                        int dataOff = 1 + 4 + keyLen;
+                        int dataLen = (int)BinaryPrimitives.ReadUInt32BigEndian(msg.AsSpan(dataOff));
+                        var sig = alg.Sign(msg.AsSpan(dataOff + 4, dataLen).ToArray());
+                        Interlocked.Increment(ref signRequests);
+                        reply = Frame([14], Str(sig));
+                    }
+                    else reply = Frame([5]);
+                    await server.WriteAsync(reply);
+                    await server.FlushAsync();
+                }
+                catch (IOException) { }
+            }
+        });
+
+        try
+        {
+            var session = MakeSession();
+            session.Ssh = new SshOptions { Auth = AuthMethod.Agent, KeepAliveSeconds = 0 };
+            var (connector, _, _) = MakeConnector();
+            using var ctx = await connector.ConnectAsync(SshEndpoint.BuildChain(session, _ => null, true), null, "t", CancellationToken.None);
+            Assert.True(ctx.Client.IsConnected);
+            Assert.True(signRequests >= 1, "the agent was not asked to sign");
+        }
+        finally
+        {
+            cts.Cancel();
+            try { using var poke = new System.IO.Pipes.NamedPipeClientStream(".", "openssh-ssh-agent"); poke.Connect(500); } catch (Exception) { }
+            await agentTask.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [SkippableFact]
+    public async Task RemotePortForwarding()
+    {
+        RequireServer();
+        var (listener, _) = StartEchoServer();
+        int echoPort = ((IPEndPoint)listener.LocalEndpoint).Port;
+        try
+        {
+            var (connector, _, _) = MakeConnector();
+            using var ctx = await connector.ConnectAsync(SshEndpoint.BuildChain(MakeSession(), _ => null, false), null, "t", CancellationToken.None);
+            using var mgr = new PortForwardManager(ctx.Client);
+            var probe = new TcpListener(IPAddress.Loopback, 0); probe.Start(); int remotePort = ((IPEndPoint)probe.LocalEndpoint).Port; probe.Stop();
+
+            var remote = mgr.Start(new PortForward { Kind = ForwardKind.Remote, BindAddress = "127.0.0.1", BindPort = (uint)remotePort, TargetHost = "127.0.0.1", TargetPort = (uint)echoPort });
+            Assert.Equal(ForwardStatus.Running, remote.Status);
+            // The server listens on remotePort and tunnels back to our echo server; connect to it from this machine (same host as sshd).
+            using var c = new TcpClient();
+            await c.ConnectAsync(IPAddress.Loopback, remotePort);
+            var s = c.GetStream();
+            await s.WriteAsync("ping-remote"u8.ToArray());
+            var buf = new byte[11];
+            await s.ReadExactlyAsync(buf).AsTask().WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.Equal("ping-remote", Encoding.ASCII.GetString(buf));
+        }
+        finally { listener.Stop(); }
+    }
+
     [SkippableFact]
     public async Task EncryptedKeyGeneratedByUsAuthenticatesWithPassphrasePrompt()
     {

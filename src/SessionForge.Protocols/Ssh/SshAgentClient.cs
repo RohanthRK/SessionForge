@@ -34,9 +34,21 @@ public sealed class SshAgentClient
     public static IReadOnlyList<SshAgentClient> Detect()
     {
         var list = new List<SshAgentClient>();
-        if (File.Exists(@"\\.\pipe\openssh-ssh-agent")) list.Add(new SshAgentClient(Backend.WindowsOpenSsh));
+        if (OpenSshPipeAvailable()) list.Add(new SshAgentClient(Backend.WindowsOpenSsh));
         if (FindWindow("Pageant", "Pageant") != IntPtr.Zero) list.Add(new SshAgentClient(Backend.Pageant));
         return list;
+    }
+
+    /// <summary>Probes by connecting (File.Exists on a pipe path can consume a connection or report false while busy).</summary>
+    private static bool OpenSshPipeAvailable()
+    {
+        try
+        {
+            using var pipe = new NamedPipeClientStream(".", "openssh-ssh-agent", PipeDirection.InOut);
+            pipe.Connect(250);
+            return true;
+        }
+        catch (Exception ex) when (ex is TimeoutException or IOException or UnauthorizedAccessException) { return false; }
     }
 
     public IReadOnlyList<AgentIdentity> ListIdentities()
