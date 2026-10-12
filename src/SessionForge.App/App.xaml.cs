@@ -51,25 +51,37 @@ public partial class App : Application
         }
     }
 
-    private bool _reportingError;
+    private bool _errorDialogPending;
+    private string? _lastErrorMessage;
+    private DateTime _lastErrorShown;
 
+    /// <summary>
+    /// Logs every UI exception; shows at most one dialog at a time, deferred to a safe dispatcher priority
+    /// (an exception raised during layout or inside a window procedure must never open a modal dialog synchronously),
+    /// and suppresses repeats of the same error for 30 seconds.
+    /// </summary>
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
     {
         Log.Error("UI exception", e.Exception);
         e.Handled = true;
-        // Guard against recursion: if showing the themed dialog itself fails, fall back to a native message box once.
-        if (_reportingError) return;
-        _reportingError = true;
-        try
+        var message = e.Exception.Message;
+        if (_errorDialogPending) return;
+        if (message == _lastErrorMessage && DateTime.UtcNow - _lastErrorShown < TimeSpan.FromSeconds(30)) return;
+        _errorDialogPending = true;
+        Dispatcher.BeginInvoke(DispatcherPriority.ApplicationIdle, () =>
         {
-            MessageDialog.Show("Unexpected error", "An unexpected error occurred. The details were written to the diagnostics log.", MessageKind.Error, detail: e.Exception.Message);
-        }
-        catch (Exception)
-        {
-            try { MessageBox.Show(e.Exception.Message, "SessionForge — unexpected error", MessageBoxButton.OK, MessageBoxImage.Error); }
-            catch (Exception) { /* nothing else we can do */ }
-        }
-        finally { _reportingError = false; }
+            try
+            {
+                _lastErrorMessage = message;
+                _lastErrorShown = DateTime.UtcNow;
+                MessageDialog.Show("Unexpected error", "An unexpected error occurred. The details were written to the diagnostics log.", MessageKind.Error, detail: message);
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Could not show the error dialog", ex);
+            }
+            finally { _errorDialogPending = false; }
+        });
     }
 
     protected override void OnExit(ExitEventArgs e)

@@ -35,10 +35,17 @@ public sealed class RdpSessionHost : SessionHost
         _statusPanel.Children.Add(_status);
         _root.Children.Add(_statusPanel);
         _root.Children.Add(_wfHost);
-        _wfHost.Visibility = Visibility.Hidden;
         _resizeTimer = new System.Windows.Threading.DispatcherTimer(TimeSpan.FromMilliseconds(700), System.Windows.Threading.DispatcherPriority.Background, (_, _) => ApplyResize(), _root.Dispatcher);
         _root.SizeChanged += (_, _) => { _resizeTimer.Stop(); _resizeTimer.Start(); };
+        // Create the ActiveX control up front and attach it before the view enters the visual tree, so its window is
+        // built during load (never inside a layout pass), and reuse it for reconnects.
+        try { CreateControl(); }
+        catch (Exception ex) when (ex is InvalidOperationException or COMException) { _createError = ex.Message; }
+        _root.Loaded += (_, _) => _loaded.TrySetResult();
     }
+
+    private readonly TaskCompletionSource _loaded = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private string? _createError;
 
     public override FrameworkElement View => _root;
     public override string StatusText => $"RDP  {Session.Describe()}{(_tunnel != null ? "   •   via SSH " + _tunnel.Description : string.Empty)}";
@@ -67,7 +74,26 @@ public sealed class RdpSessionHost : SessionHost
         _userDisconnect = false;
         State = HostState.Connecting;
         SetStatus($"Connecting to {Session.Host}…");
-        DisposeControl();
+        if (_createError != null || _ax == null)
+        {
+            State = HostState.Failed;
+            SetStatus("Remote Desktop is unavailable: " + (_createError ?? "the RDP control could not be created."), showRetry: false);
+            return;
+        }
+        // Reconnect: end any previous connection first.
+        try
+        {
+            if (_ax.GetOcxSafe() is { } existing && (int)((dynamic)existing).Connected != 0)
+            {
+                _userDisconnect = true;
+                ((dynamic)existing).Disconnect();
+                await Task.Delay(300);
+                _userDisconnect = false;
+            }
+        }
+        catch (Exception ex) when (ex is COMException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException) { }
+        _tunnel?.Dispose();
+        _tunnel = null;
 
         string host = Session.Host;
         int port = Session.Port > 0 ? Session.Port : 3389;
@@ -108,8 +134,12 @@ public sealed class RdpSessionHost : SessionHost
 
         try
         {
-            CreateControl();
+            Log.Info($"RDP: waiting for view/control ({Session.Host}:{port})");
+            await _loaded.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            _wfHost.Visibility = Visibility.Visible;
+            _statusPanel.Visibility = Visibility.Collapsed;
             await WaitForHandleAsync();
+            Log.Info("RDP: control ready, applying settings");
             dynamic ocx = _ax!.Ocx ?? throw new InvalidOperationException("The Remote Desktop control did not initialise.");
             ocx.Server = host;
             if (!string.IsNullOrEmpty(user)) ocx.UserName = user;
@@ -154,7 +184,13 @@ public sealed class RdpSessionHost : SessionHost
 
             _wfHost.Visibility = Visibility.Visible;
             _statusPanel.Visibility = Visibility.Collapsed;
+            Log.Info("RDP: connecting");
             ocx.Connect();
+        }
+        catch (TimeoutException)
+        {
+            State = HostState.Failed;
+            SetStatus("The Remote Desktop view did not load in time. Select the tab and choose Reconnect.", showRetry: true);
         }
         catch (COMException ex)
         {
@@ -189,6 +225,9 @@ public sealed class RdpSessionHost : SessionHost
             if (type == null) continue;
             try
             {
+                // AxHost instantiates lazily, so a registered-but-unusable class would only fail later; probe it now.
+                var probe = Activator.CreateInstance(type);
+                if (probe != null && Marshal.IsComObject(probe)) Marshal.FinalReleaseComObject(probe);
                 var ax = new RdpAxHost(type.GUID.ToString());
                 ax.Dock = WinForms.DockStyle.Fill;
                 ax.Connected += () => _root.Dispatcher.BeginInvoke(() => { State = HostState.Connected; AppServices.Sessions.MarkConnected(Session.Id); RaiseStatusChanged(); });
@@ -206,12 +245,22 @@ public sealed class RdpSessionHost : SessionHost
 
     private async Task WaitForHandleAsync()
     {
-        for (int i = 0; i < 100 && (_ax == null || !_ax.Created); i++)
+        // Wait for the WPF view to be loaded (the tab may have just been added), then for the ActiveX window.
+        for (int i = 0; i < 150 && (_ax == null || !_ax.Created || _ax.GetOcxSafe() == null); i++)
         {
-            if (_ax is { IsHandleCreated: false } && _root.IsLoaded) _ax.CreateControl();
+            if (i == 10 && _ax is { IsHandleCreated: false })
+            {
+                // The WindowsFormsHost has not parented the control yet; force creation and record why it fails.
+                try { _ax.Visible = true; _ax.CreateControl(); if (!_ax.IsHandleCreated) _ = _ax.Handle; }
+                catch (Exception ex) { Log.Error("RDP: CreateControl failed", ex); }
+            }
             await Task.Delay(20);
         }
-        if (_ax == null || !_ax.Created) throw new InvalidOperationException("The Remote Desktop control could not be created.");
+        if (_ax == null || !_ax.Created || _ax.GetOcxSafe() == null)
+        {
+            Log.Warn($"RDP: control state handleCreated={_ax?.IsHandleCreated} created={_ax?.Created} hostLoaded={_wfHost.IsLoaded} hostVisible={_wfHost.IsVisible} parent={_ax?.Parent != null}");
+            throw new InvalidOperationException("The Remote Desktop control could not be created (is mstscax.dll available and the tab visible?).");
+        }
     }
 
     private void OnDisconnected(int reason)
@@ -301,6 +350,13 @@ internal sealed class RdpAxHost : WinForms.AxHost
     public RdpAxHost(string clsid) : base(clsid) { }
 
     public object? Ocx => GetOcx();
+
+    /// <summary>GetOcx without throwing when the control isn't instantiated yet.</summary>
+    public object? GetOcxSafe()
+    {
+        try { return GetOcx(); }
+        catch (Exception ex) when (ex is InvalidOperationException or COMException) { return null; }
+    }
 
     public event Action? Connected;
     public event Action? LoginComplete;
