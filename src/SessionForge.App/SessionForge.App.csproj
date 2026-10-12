@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.17763.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
+    <!-- WinForms is needed only to host the Remote Desktop ActiveX control. -->
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>SessionForge</AssemblyName>
+    <RootNamespace>SessionForge.App</RootNamespace>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\SessionForge.ico</ApplicationIcon>
+    <Product>SessionForge</Product>
+    <Description>SessionForge remote session manager</Description>
+    <!-- WFAC010: WinForms DPI advice; DPI awareness is declared in the manifest because WPF owns the process. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SessionForge.Core\SessionForge.Core.csproj" />
+    <ProjectReference Include="..\SessionForge.Terminal\SessionForge.Terminal.csproj" />
+    <ProjectReference Include="..\SessionForge.Protocols\SessionForge.Protocols.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\SessionForge.ico" />
+    <Resource Include="Assets\icon256.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Avoid ambiguity between WinForms and WPF types in implicit usings. -->
+    <Using Remove="System.Windows.Forms" />
+    <Using Remove="System.Drawing" />
+  </ItemGroup>
+
+</Project>

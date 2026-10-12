@@ -1,0 +1,333 @@
+<Window x:Class="SessionForge.App.Views.SessionEditorWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Session" Width="760" Height="640" MinWidth="640" MinHeight="520"
+        Style="{DynamicResource DialogWindow}" SizeToContent="Manual" ResizeMode="CanResize" WindowStartupLocation="CenterOwner">
+    <Window.Resources>
+        <Style TargetType="TextBlock" x:Key="L" BasedOn="{StaticResource Text.Label}">
+            <Setter Property="Margin" Value="0,0,12,0"/>
+        </Style>
+        <Style TargetType="Grid" x:Key="Form">
+            <Setter Property="Margin" Value="0,0,0,0"/>
+        </Style>
+    </Window.Resources>
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Session type picker -->
+        <Border Background="{DynamicResource Bg.Chrome}" BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,0,0,1" Padding="16,12">
+            <StackPanel>
+                <TextBlock Text="Session type" Style="{StaticResource Text.Section}" Margin="0,0,0,8"/>
+                <ListBox x:Name="KindList" SelectionChanged="KindList_SelectionChanged" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ListBox.ItemsPanel>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel Width="72" Margin="0,2">
+                                <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource IconFont}" FontSize="20" HorizontalAlignment="Center" Foreground="{DynamicResource Accent}"/>
+                                <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" Margin="0,5,0,0" FontSize="12"/>
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </StackPanel>
+        </Border>
+
+        <TabControl x:Name="Tabs" Grid.Row="1" Style="{StaticResource Tabs.Pill}" Margin="16,12,16,0">
+            <!-- ===== General ===== -->
+            <TabItem Header="General">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="0,0,8,8">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="150"/>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="90"/>
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Text="Session name" Style="{StaticResource L}"/>
+                        <TextBox x:Name="NameBox" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10"/>
+
+                        <TextBlock x:Name="HostLabel" Grid.Row="1" Text="Host" Style="{StaticResource L}"/>
+                        <TextBox x:Name="HostBox" Grid.Row="1" Grid.Column="1" Text="{Binding Host, UpdateSourceTrigger=PropertyChanged}" Tag="hostname or IP address" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="PortLabel" Grid.Row="1" Grid.Column="2" Text="Port" Style="{StaticResource L}" Margin="14,0,8,10"/>
+                        <TextBox x:Name="PortBox" Grid.Row="1" Grid.Column="3" Text="{Binding Port}" Margin="0,0,0,10"/>
+
+                        <TextBlock x:Name="UserLabel" Grid.Row="2" Text="Username" Style="{StaticResource L}"/>
+                        <TextBox x:Name="UserBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Credential.Username}" Tag="leave empty to be asked" Margin="0,0,0,10"/>
+
+                        <TextBlock x:Name="CredLabel" Grid.Row="3" Text="Stored credential" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="CredentialCombo" Grid.Row="3" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="Name" SelectedValuePath="Id" Margin="0,0,0,10"/>
+
+                        <TextBlock x:Name="AuthLabel" Grid.Row="4" Text="Authentication" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="AuthCombo" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,10" SelectionChanged="AuthCombo_SelectionChanged"/>
+
+                        <TextBlock x:Name="KeyLabel" Grid.Row="5" Text="Private key" Style="{StaticResource L}"/>
+                        <DockPanel x:Name="KeyPanel" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,10">
+                            <Button DockPanel.Dock="Right" Content="Browse…" Margin="8,0,0,0" Click="BrowseKey_Click"/>
+                            <ComboBox x:Name="VaultKeyCombo" DockPanel.Dock="Right" Width="170" Margin="8,0,0,0" DisplayMemberPath="Name" SelectedValuePath="Id" ToolTip="…or use a key stored in the vault"/>
+                            <TextBox Text="{Binding Ssh.PrivateKeyPath}" Tag="OpenSSH / PuTTY .ppk / PEM key file"/>
+                        </DockPanel>
+
+                        <CheckBox x:Name="SavePasswordCheck" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Content="Save password / passphrase in the encrypted vault" IsChecked="{Binding Credential.SavePassword}"/>
+                        <StackPanel x:Name="PasswordRow" Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,6,0,10">
+                            <PasswordBox x:Name="PasswordBox" Width="260"/>
+                            <TextBlock Text="Leave empty to keep the stored password (or be prompted)." Style="{StaticResource Text.Hint}" VerticalAlignment="Center" Margin="10,0,0,0" MaxWidth="260"/>
+                        </StackPanel>
+
+                        <!-- Serial -->
+                        <TextBlock x:Name="SerialPortLabel" Grid.Row="1" Text="Serial port" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="SerialPortCombo" Grid.Row="1" Grid.Column="1" IsEditable="True" Text="{Binding Serial.PortName}" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="BaudLabel" Grid.Row="1" Grid.Column="2" Text="Speed" Style="{StaticResource L}" Margin="14,0,8,10"/>
+                        <ComboBox x:Name="BaudCombo" Grid.Row="1" Grid.Column="3" IsEditable="True" Text="{Binding Serial.BaudRate}" Margin="0,0,0,10"/>
+
+                        <!-- Local shell -->
+                        <TextBlock x:Name="ShellLabel" Grid.Row="1" Text="Command" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="ShellCombo" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" IsEditable="True" Text="{Binding Shell.CommandLine}" Margin="0,0,0,10"/>
+                        <TextBlock x:Name="ShellDirLabel" Grid.Row="2" Text="Start in" Style="{StaticResource L}"/>
+                        <TextBox x:Name="ShellDirBox" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Shell.WorkingDirectory}" Tag="%USERPROFILE%" Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="8" Text="Folder" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="FolderCombo" Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="Path" SelectedValuePath="Id" Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="9" Text="Tags" Style="{StaticResource L}"/>
+                        <TextBox x:Name="TagsBox" Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="3" Tag="comma separated, e.g. prod, web" Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="10" Text="Tab colour" Style="{StaticResource L}"/>
+                        <WrapPanel x:Name="ColorPanel" Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,10"/>
+
+                        <TextBlock Grid.Row="11" Text="Notes" Style="{StaticResource L}" VerticalAlignment="Top" Margin="0,6,12,0"/>
+                        <TextBox Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Notes}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70" VerticalContentAlignment="Top"/>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== SSH ===== -->
+            <TabItem x:Name="SshTab" Header="SSH">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,0,8,8">
+                        <TextBlock Text="JUMP HOSTS (SSH GATEWAYS)" Style="{StaticResource Text.Section}" Margin="0,0,0,6"/>
+                        <TextBlock Text="Connections hop through these SSH servers in order. Each hop is tunnelled through the previous one; nothing is exposed on your network." Style="{StaticResource Text.Hint}"/>
+                        <DockPanel Margin="0,8,0,0">
+                            <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0">
+                                <Button Content="Add host…" Click="AddJump_Click" Margin="0,0,0,6"/>
+                                <Button Content="Add saved session…" Click="AddJumpSession_Click" Margin="0,0,0,6"/>
+                                <Button Content="Move up" Click="JumpUp_Click" Margin="0,0,0,6"/>
+                                <Button Content="Move down" Click="JumpDown_Click" Margin="0,0,0,6"/>
+                                <Button Content="Remove" Click="JumpRemove_Click"/>
+                            </StackPanel>
+                            <Border Style="{StaticResource Card}" Padding="4" MinHeight="110">
+                                <ListBox x:Name="JumpList" DisplayMemberPath="Display"/>
+                            </Border>
+                        </DockPanel>
+
+                        <TextBlock Text="PROXY" Style="{StaticResource Text.Section}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="90"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Text="Proxy type" Style="{StaticResource L}"/>
+                            <ComboBox x:Name="ProxyCombo" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="Proxy host" Style="{StaticResource L}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Ssh.Proxy.Host}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="Port" Style="{StaticResource L}" Margin="14,0,8,8"/>
+                            <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Ssh.Proxy.Port}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="2" Text="Proxy user" Style="{StaticResource L}"/>
+                            <StackPanel Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal">
+                                <TextBox Text="{Binding Ssh.Proxy.Username}" Width="200"/>
+                                <CheckBox Content="Proxy requires a password" IsChecked="{Binding Ssh.Proxy.HasPassword}" Margin="14,0,0,0"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <TextBlock Text="CONNECTION" Style="{StaticResource Text.Section}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="120"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Text="Keepalive (seconds)" Style="{StaticResource L}"/>
+                            <TextBox Grid.Column="1" Text="{Binding Ssh.KeepAliveSeconds}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="Connect timeout (s)" Style="{StaticResource L}"/>
+                            <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Ssh.ConnectTimeoutSeconds}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="2" Text="Terminal type" Style="{StaticResource L}"/>
+                            <ComboBox x:Name="TermTypeCombo" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="2" IsEditable="True" Text="{Binding Ssh.TerminalType}" Margin="0,0,0,8"/>
+                        </Grid>
+                        <CheckBox Content="Compression (zlib@openssh.com when the server supports it)" IsChecked="{Binding Ssh.Compression}"/>
+                        <CheckBox Content="Open the SFTP browser automatically" IsChecked="{Binding Ssh.OpenSftpBrowser}"/>
+                        <CheckBox Content="Show remote monitoring under the terminal (CPU, RAM, disk, load — Linux hosts)" IsChecked="{Binding Ssh.RemoteMonitoring}"/>
+
+                        <TextBlock Text="AFTER LOGIN" Style="{StaticResource Text.Section}"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Text="Execute command" Style="{StaticResource L}"/>
+                            <TextBox Grid.Column="1" Text="{Binding Ssh.RemoteCommand}" Tag="e.g. tmux attach || tmux" FontFamily="{DynamicResource MonoFont}" Margin="0,0,0,8"/>
+                            <CheckBox Grid.Row="1" Grid.Column="1" Content="Stay in the shell after the command finishes" IsChecked="{Binding Ssh.StayAfterCommand}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="2" Text="Start directory" Style="{StaticResource L}"/>
+                            <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding Ssh.StartupDirectory}" FontFamily="{DynamicResource MonoFont}"/>
+                        </Grid>
+
+                        <TextBlock Text="ALGORITHMS (ADVANCED)" Style="{StaticResource Text.Section}"/>
+                        <TextBlock Text="Comma-separated allow-lists. Leave empty to use the secure defaults of the SSH engine." Style="{StaticResource Text.Hint}" Margin="0,0,0,6"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Text="Key exchange" Style="{StaticResource L}"/>
+                            <TextBox x:Name="KexBox" Grid.Column="1" Tag="curve25519-sha256, ecdh-sha2-nistp256, …" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="Ciphers" Style="{StaticResource L}"/>
+                            <TextBox x:Name="CipherBox" Grid.Row="1" Grid.Column="1" Tag="chacha20-poly1305@openssh.com, aes256-gcm@openssh.com, …" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="2" Text="Host key types" Style="{StaticResource L}"/>
+                            <TextBox x:Name="HostKeyAlgBox" Grid.Row="2" Grid.Column="1" Tag="ssh-ed25519, rsa-sha2-512, …"/>
+                        </Grid>
+                        <TextBlock Text="Not supported by the SSH engine (and therefore not offered): X11 forwarding, agent forwarding." Style="{StaticResource Text.Hint}" Margin="0,10,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== Port forwarding ===== -->
+            <TabItem x:Name="ForwardTab" Header="Tunnels">
+                <DockPanel Margin="0,0,8,8">
+                    <TextBlock DockPanel.Dock="Top" Text="Port forwards start automatically when this session connects. Local and dynamic forwards bind to 127.0.0.1 by default." Style="{StaticResource Text.Hint}" Margin="0,0,0,8"/>
+                    <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0">
+                        <Button Content="Add…" Click="AddForward_Click" Margin="0,0,0,6"/>
+                        <Button Content="Edit…" Click="EditForward_Click" Margin="0,0,0,6"/>
+                        <Button Content="Remove" Click="RemoveForward_Click"/>
+                    </StackPanel>
+                    <Border Style="{StaticResource Card}" Padding="4">
+                        <ListBox x:Name="ForwardList" MouseDoubleClick="EditForward_Click"/>
+                    </Border>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ===== Terminal ===== -->
+            <TabItem x:Name="TerminalTab" Header="Terminal">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <Grid Margin="0,0,8,8">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/>
+                            <RowDefinition/><RowDefinition/>
+                        </Grid.RowDefinitions>
+                        <CheckBox Grid.Row="9" Grid.Column="1" Grid.ColumnSpan="3" IsThreeState="True" IsChecked="{Binding Terminal.KeywordHighlighting}" Margin="0,10,0,4"
+                                  Content="Highlight keywords (errors, warnings, OK, IP addresses) — indeterminate = use the global setting"/>
+                        <TextBlock Grid.Row="10" Text="Paste line delay (ms)" Style="{StaticResource L}"/>
+                        <StackPanel Grid.Row="10" Grid.Column="1" Grid.ColumnSpan="3" Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBox Text="{Binding Terminal.PasteLineDelayMs}" Width="90"/>
+                            <TextBlock Text="Pause between pasted lines for slow devices (0 = off)." Style="{StaticResource Text.Hint}" VerticalAlignment="Center" Margin="10,0,0,0"/>
+                        </StackPanel>
+                        <TextBlock Text="Colour theme" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="ThemeCombo" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="1" Text="Font" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="FontCombo" Grid.Row="1" Grid.Column="1" IsEditable="True" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="1" Grid.Column="2" Text="Size" Style="{StaticResource L}" Margin="14,0,8,8"/>
+                        <TextBox x:Name="FontSizeBox" Grid.Row="1" Grid.Column="3" Tag="default" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="2" Text="Character set" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="EncodingCombo" Grid.Row="2" Grid.Column="1" Grid.ColumnSpan="3" IsEditable="True" Text="{Binding Terminal.Encoding}" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="3" Text="Scrollback lines" Style="{StaticResource L}"/>
+                        <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding Terminal.ScrollbackLines}" Margin="0,0,0,8"/>
+                        <CheckBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Content="Backspace sends Ctrl+H (^H) instead of DEL" IsChecked="{Binding Terminal.BackspaceSendsControlH}"/>
+                        <CheckBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3" Content="Lock tab title (ignore title changes from the host)" IsChecked="{Binding Terminal.LockTitle}"/>
+                        <TextBlock Grid.Row="6" Text="Session log" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="LogCombo" Grid.Row="6" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,8,0,8"/>
+                        <TextBlock Grid.Row="7" Text="Log folder" Style="{StaticResource L}"/>
+                        <TextBox Grid.Row="7" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Terminal.LogDirectory}" Tag="default log folder" Margin="0,0,0,8"/>
+                        <TextBlock Grid.Row="8" Text="Run macro on connect" Style="{StaticResource L}"/>
+                        <ComboBox x:Name="MacroCombo" Grid.Row="8" Grid.Column="1" Grid.ColumnSpan="3" DisplayMemberPath="Name" SelectedValuePath="Id"/>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== RDP ===== -->
+            <TabItem x:Name="RdpTab" Header="Remote Desktop">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="0,0,8,8">
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="90"/></Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                            <TextBlock Text="Domain" Style="{StaticResource L}"/>
+                            <TextBox Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Rdp.Domain}" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Text="Resolution" Style="{StaticResource L}"/>
+                            <ComboBox x:Name="ResolutionCombo" Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="2" Text="Colour depth" Style="{StaticResource L}"/>
+                            <ComboBox x:Name="DepthCombo" Grid.Row="2" Grid.Column="1" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="3" Text="Audio" Style="{StaticResource L}"/>
+                            <ComboBox x:Name="AudioCombo" Grid.Row="3" Grid.Column="1" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="4" Text="RD Gateway" Style="{StaticResource L}"/>
+                            <TextBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Rdp.Gateway}" Tag="optional gateway hostname"/>
+                        </Grid>
+                        <TextBlock Text="LOCAL RESOURCES" Style="{StaticResource Text.Section}"/>
+                        <WrapPanel>
+                            <CheckBox Content="Clipboard" IsChecked="{Binding Rdp.RedirectClipboard}" Width="160"/>
+                            <CheckBox Content="Drives" IsChecked="{Binding Rdp.RedirectDrives}" Width="160"/>
+                            <CheckBox Content="Printers" IsChecked="{Binding Rdp.RedirectPrinters}" Width="160"/>
+                            <CheckBox Content="Smart cards" IsChecked="{Binding Rdp.RedirectSmartCards}" Width="160"/>
+                            <CheckBox Content="Serial ports" IsChecked="{Binding Rdp.RedirectPorts}" Width="160"/>
+                            <CheckBox Content="Microphone" IsChecked="{Binding Rdp.RedirectMicrophone}" Width="160"/>
+                        </WrapPanel>
+                        <TextBlock Text="SESSION" Style="{StaticResource Text.Section}"/>
+                        <CheckBox Content="Smart sizing (scale the remote desktop to the tab)" IsChecked="{Binding Rdp.SmartSizing}"/>
+                        <CheckBox Content="Connect to the admin console" IsChecked="{Binding Rdp.AdminConsole}"/>
+                        <CheckBox Content="Network Level Authentication (CredSSP)" IsChecked="{Binding Rdp.EnableCredSsp}"/>
+                        <CheckBox Content="Compression" IsChecked="{Binding Rdp.Compression}"/>
+                        <CheckBox Content="Tunnel through the SSH jump hosts configured on the SSH tab" IsChecked="{Binding Rdp.TunnelThroughSsh}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,6,0,0">
+                            <TextBlock Text="Server authentication" Style="{StaticResource L}"/>
+                            <ComboBox x:Name="RdpAuthCombo" Width="260"/>
+                        </StackPanel>
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ===== VNC ===== -->
+            <TabItem x:Name="VncTab" Header="VNC">
+                <StackPanel Margin="0,0,8,8">
+                    <CheckBox Content="Scale the remote screen to fit the tab" IsChecked="{Binding Vnc.Scale}"/>
+                    <CheckBox Content="View only (no keyboard or mouse input)" IsChecked="{Binding Vnc.ViewOnly}"/>
+                    <CheckBox Content="Shared session (don't disconnect other viewers)" IsChecked="{Binding Vnc.SharedSession}"/>
+                    <CheckBox Content="Receive the remote clipboard" IsChecked="{Binding Vnc.SharedClipboard}"/>
+                    <CheckBox Content="Tunnel through the SSH jump hosts configured on the SSH tab" IsChecked="{Binding Vnc.TunnelThroughSsh}"/>
+                    <TextBlock Text="Supported: RFB 3.3–3.8, security None / VNC password; encodings ZRLE, Hextile, RRE, CopyRect, Raw. VNC traffic is not encrypted unless tunnelled through SSH." Style="{StaticResource Text.Hint}" Margin="0,12,0,0"/>
+                </StackPanel>
+            </TabItem>
+
+            <!-- ===== Serial ===== -->
+            <TabItem x:Name="SerialTab" Header="Serial">
+                <Grid Margin="0,0,8,8">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="200"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+                    <TextBlock Text="Data bits" Style="{StaticResource L}"/>
+                    <ComboBox x:Name="DataBitsCombo" Grid.Column="1" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="1" Text="Parity" Style="{StaticResource L}"/>
+                    <ComboBox x:Name="ParityCombo" Grid.Row="1" Grid.Column="1" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="2" Text="Stop bits" Style="{StaticResource L}"/>
+                    <ComboBox x:Name="StopBitsCombo" Grid.Row="2" Grid.Column="1" Margin="0,0,0,8"/>
+                    <TextBlock Grid.Row="3" Text="Flow control" Style="{StaticResource L}"/>
+                    <ComboBox x:Name="FlowCombo" Grid.Row="3" Grid.Column="1" Margin="0,0,0,8"/>
+                    <CheckBox Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="2" Content="Local echo" IsChecked="{Binding Serial.LocalEcho}"/>
+                    <CheckBox Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Content="Send CR+LF on Enter" IsChecked="{Binding Serial.SendCrLf}"/>
+                </Grid>
+            </TabItem>
+        </TabControl>
+
+        <!-- Footer -->
+        <Border Grid.Row="2" BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,1,0,0" Padding="16,12" Background="{DynamicResource Bg.Chrome}">
+            <DockPanel>
+                <TextBlock x:Name="ValidationText" Foreground="{DynamicResource Danger}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="Save" Width="96" Click="Save_Click"/>
+                    <Button Content="Save and connect" Style="{StaticResource Button.Primary}" IsDefault="True" Margin="8,0,0,0" Click="SaveConnect_Click"/>
+                    <Button Content="Cancel" Width="96" IsCancel="True" Margin="8,0,0,0"/>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>

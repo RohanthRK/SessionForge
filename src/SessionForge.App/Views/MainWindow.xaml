@@ -1,0 +1,423 @@
+<Window x:Class="SessionForge.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:views="clr-namespace:SessionForge.App.Views"
+        xmlns:controls="clr-namespace:SessionForge.App.Controls"
+        Title="SessionForge" Width="1280" Height="800" MinWidth="760" MinHeight="480"
+        Background="{DynamicResource Bg.Window}" Foreground="{DynamicResource Fg.Primary}"
+        FontFamily="{DynamicResource UiFont}" FontSize="13" UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display" Icon="pack://application:,,,/SessionForge;component/Assets/SessionForge.ico">
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="40" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1" CornerRadius="0" UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <Style x:Key="RailButton" TargetType="ToggleButton" BasedOn="{StaticResource {x:Type ToggleButton}}">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Margin" Value="0,2"/>
+        </Style>
+
+        <DataTemplate x:Key="TreeHeader">
+            <Grid Background="Transparent">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource IconFont}" FontSize="13" Margin="2,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource Accent}"/>
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                    <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{DynamicResource Fg.Muted}" TextTrimming="CharacterEllipsis">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Subtitle}" Value="{x:Null}">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
+                </StackPanel>
+                <Ellipse Grid.Column="2" Width="7" Height="7" Fill="{DynamicResource Success}" Margin="6,0,4,0" VerticalAlignment="Center" ToolTip="Open">
+                    <Ellipse.Style>
+                        <Style TargetType="Ellipse">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding OpenCount, FallbackValue=0}" Value="0">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Ellipse.Style>
+                </Ellipse>
+            </Grid>
+        </DataTemplate>
+    </Window.Resources>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="40"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- ================= Title bar ================= -->
+        <Border Background="{DynamicResource Bg.Chrome}" BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,0,0,1">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" Margin="12,0,6,0" VerticalAlignment="Center">
+                    <Image Source="pack://application:,,,/SessionForge;component/Assets/icon256.png" Width="18" Height="18" RenderOptions.BitmapScalingMode="HighQuality"/>
+                    <TextBlock Text="SessionForge" FontWeight="SemiBold" Margin="8,0,0,0" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Button x:Name="MenuButton" Grid.Column="1" Style="{StaticResource Button.Ghost}" WindowChrome.IsHitTestVisibleInChrome="True" Margin="6,0,0,0" Click="MenuButton_Click" ToolTip="Menu (Alt)">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="&#xE700;" Style="{StaticResource Icon}"/>
+                    </StackPanel>
+                </Button>
+                <Grid Grid.Column="2" Width="340" Margin="10,0,0,0" VerticalAlignment="Center" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <TextBox x:Name="QuickConnectBox" Tag="Quick connect:  user@host:port   ·   ssh / telnet / rdp / vnc://host" MinHeight="28" Padding="30,3,8,3" KeyDown="QuickConnect_KeyDown"/>
+                    <TextBlock Text="&#xE721;" Style="{StaticResource Icon}" HorizontalAlignment="Left" Margin="10,0,0,0" Foreground="{DynamicResource Fg.Muted}" IsHitTestVisible="False" FontSize="12"/>
+                </Grid>
+                <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0" WindowChrome.IsHitTestVisibleInChrome="True">
+                    <Button Style="{StaticResource Button.Ghost}" ToolTip="New session (Ctrl+Shift+N)" Click="NewSession_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" Style="{StaticResource Icon}"/><TextBlock Text="Session" Margin="6,0,0,0"/></StackPanel>
+                    </Button>
+                    <Button Style="{StaticResource Button.Ghost}" ToolTip="Local terminal (Ctrl+Shift+T)" Click="LocalTerminal_Click">
+                        <TextBlock Text="&#xE756;" Style="{StaticResource Icon}"/>
+                    </Button>
+                    <Button Style="{StaticResource Button.Ghost}" ToolTip="Split right (Ctrl+Shift+D)" Click="SplitVertical_Click">
+                        <Path Data="M1,1 H15 V13 H1 Z M8,1 V13" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Width="16" Height="14"/>
+                    </Button>
+                    <Button Style="{StaticResource Button.Ghost}" ToolTip="Split down (Ctrl+Shift+E)" Click="SplitHorizontal_Click">
+                        <Path Data="M1,1 H15 V13 H1 Z M1,7 H15" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.2" Width="16" Height="14"/>
+                    </Button>
+                    <ToggleButton x:Name="MultiExecToggle" ToolTip="Multi-execution: type into all terminals of this tab (Ctrl+Shift+M)" Click="MultiExec_Click">
+                        <StackPanel Orientation="Horizontal"><TextBlock Text="&#xE8A9;" Style="{StaticResource Icon}"/><TextBlock Text="MultiExec" Margin="6,0,0,0"/></StackPanel>
+                    </ToggleButton>
+                    <Button x:Name="VaultButton" Style="{StaticResource Button.Ghost}" ToolTip="Credential vault" Click="Vault_Click">
+                        <TextBlock x:Name="VaultIcon" Text="&#xE72E;" Style="{StaticResource Icon}"/>
+                    </Button>
+                    <Button Style="{StaticResource Button.Ghost}" ToolTip="Settings" Click="Settings_Click">
+                        <TextBlock Text="&#xE713;" Style="{StaticResource Icon}"/>
+                    </Button>
+                </StackPanel>
+                <StackPanel Grid.Column="5" Orientation="Horizontal">
+                    <Button Style="{StaticResource Button.Caption}" Content="&#xE921;" Click="Minimize_Click" AutomationProperties.Name="Minimize"/>
+                    <Button x:Name="MaxButton" Style="{StaticResource Button.Caption}" Content="&#xE922;" Click="Maximize_Click" AutomationProperties.Name="Maximize"/>
+                    <Button Style="{StaticResource Button.CaptionClose}" Content="&#xE8BB;" Click="Close_Click" AutomationProperties.Name="Close"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ================= Main area ================= -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="48"/>
+                <ColumnDefinition x:Name="SidebarColumn" Width="270" MinWidth="0"/>
+                <ColumnDefinition x:Name="SplitterColumn" Width="4"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Rail -->
+            <Border Background="{DynamicResource Bg.Chrome}" BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" Margin="0,0,0,8" HorizontalAlignment="Center">
+                        <Button Style="{StaticResource Button.Ghost}" Width="38" Height="38" ToolTip="Known hosts" Click="KnownHosts_Click"><TextBlock Text="&#xE774;" Style="{StaticResource Icon}" FontSize="16"/></Button>
+                        <Button Style="{StaticResource Button.Ghost}" Width="38" Height="38" ToolTip="SSH key manager / generator" Click="KeyGen_Click"><TextBlock Text="&#xE8D7;" Style="{StaticResource Icon}" FontSize="16"/></Button>
+                    </StackPanel>
+                    <StackPanel HorizontalAlignment="Center" Margin="0,8,0,0">
+                        <ToggleButton x:Name="RailSessions" Style="{StaticResource RailButton}" ToolTip="Sessions" Checked="Rail_Checked" Unchecked="Rail_Unchecked" Tag="Sessions"><TextBlock Text="&#xE8F1;" Style="{StaticResource Icon}" FontSize="17"/></ToggleButton>
+                        <ToggleButton x:Name="RailSftp" Style="{StaticResource RailButton}" ToolTip="SFTP browser for the active SSH session" Checked="Rail_Checked" Unchecked="Rail_Unchecked" Tag="Sftp"><TextBlock Text="&#xE8B7;" Style="{StaticResource Icon}" FontSize="17"/></ToggleButton>
+                        <ToggleButton x:Name="RailMacros" Style="{StaticResource RailButton}" ToolTip="Macros" Checked="Rail_Checked" Unchecked="Rail_Unchecked" Tag="Macros"><TextBlock Text="&#xE768;" Style="{StaticResource Icon}" FontSize="17"/></ToggleButton>
+                        <ToggleButton x:Name="RailTunnels" Style="{StaticResource RailButton}" ToolTip="Tunnels (port forwarding)" Checked="Rail_Checked" Unchecked="Rail_Unchecked" Tag="Tunnels"><TextBlock Text="&#xE8AF;" Style="{StaticResource Icon}" FontSize="17"/></ToggleButton>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- Sidebar -->
+            <Border x:Name="SidebarBorder" Grid.Column="1" Background="{DynamicResource Bg.Sidebar}">
+                <Grid>
+                    <!-- Sessions panel -->
+                    <DockPanel x:Name="SessionsPanel">
+                        <DockPanel DockPanel.Dock="Top" Margin="12,10,8,4">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Style="{StaticResource Button.Ghost}" ToolTip="New session" Click="NewSession_Click"><TextBlock Text="&#xE710;" Style="{StaticResource Icon}" FontSize="12"/></Button>
+                                <Button Style="{StaticResource Button.Ghost}" ToolTip="New folder" Click="NewFolder_Click"><TextBlock Text="&#xE8F4;" Style="{StaticResource Icon}" FontSize="12"/></Button>
+                                <Button x:Name="ImportButton" Style="{StaticResource Button.Ghost}" ToolTip="Import / export" Click="ImportMenu_Click"><TextBlock Text="&#xE8B5;" Style="{StaticResource Icon}" FontSize="12"/></Button>
+                            </StackPanel>
+                            <TextBlock Text="SESSIONS" Style="{StaticResource Text.Section}" Margin="0" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <TextBox x:Name="SessionFilter" DockPanel.Dock="Top" Margin="10,2,10,6" Tag="Search name, host, tag, folder…" TextChanged="SessionFilter_TextChanged" KeyDown="SessionFilter_KeyDown"/>
+                        <TreeView x:Name="SessionTree" ItemTemplate="{x:Null}" AllowDrop="True"
+                                  MouseDoubleClick="SessionTree_MouseDoubleClick" KeyDown="SessionTree_KeyDown"
+                                  PreviewMouseRightButtonDown="SessionTree_PreviewMouseRightButtonDown"
+                                  PreviewMouseLeftButtonDown="SessionTree_PreviewMouseLeftButtonDown" PreviewMouseMove="SessionTree_PreviewMouseMove"
+                                  DragOver="SessionTree_DragOver" Drop="SessionTree_Drop">
+                            <TreeView.ItemContainerStyle>
+                                <Style TargetType="TreeViewItem" BasedOn="{StaticResource {x:Type TreeViewItem}}">
+                                    <Setter Property="IsExpanded" Value="{Binding IsExpanded, Mode=TwoWay}"/>
+                                    <Setter Property="IsSelected" Value="{Binding IsSelected, Mode=TwoWay}"/>
+                                </Style>
+                            </TreeView.ItemContainerStyle>
+                            <TreeView.Resources>
+                                <HierarchicalDataTemplate DataType="{x:Type views:FolderNode}" ItemsSource="{Binding Children}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource IconFont}" FontSize="13" Margin="2,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource Warning}"/>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                        <TextBlock Text="{Binding Count}" Foreground="{DynamicResource Fg.Muted}" Margin="8,0,0,0" FontSize="11" VerticalAlignment="Center"/>
+                                    </StackPanel>
+                                </HierarchicalDataTemplate>
+                                <DataTemplate DataType="{x:Type views:SessionNode}">
+                                    <Grid Background="Transparent">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="{Binding Glyph}" FontFamily="{DynamicResource IconFont}" FontSize="13" Margin="2,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource Accent}"/>
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Text="{Binding Subtitle}" FontSize="11" Foreground="{DynamicResource Fg.Muted}" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="2" CornerRadius="8" Padding="6,0" Margin="6,0,4,0" VerticalAlignment="Center" Background="{DynamicResource SuccessSubtle}">
+                                            <Border.Style>
+                                                <Style TargetType="Border">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding OpenCount}" Value="0">
+                                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </Border.Style>
+                                            <TextBlock Text="{Binding OpenCount}" FontSize="10.5" Foreground="{DynamicResource Success}" FontWeight="SemiBold"/>
+                                        </Border>
+                                    </Grid>
+                                </DataTemplate>
+                            </TreeView.Resources>
+                        </TreeView>
+                    </DockPanel>
+
+                    <!-- SFTP panel -->
+                    <DockPanel x:Name="SftpPanel" Visibility="Collapsed">
+                        <DockPanel DockPanel.Dock="Top" Margin="12,10,8,4">
+                            <TextBlock x:Name="SftpPanelTitle" Text="SFTP" Style="{StaticResource Text.Section}" Margin="0" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                        </DockPanel>
+                        <Grid x:Name="SftpPanelHost">
+                            <TextBlock x:Name="SftpPanelHint" Text="Select a connected SSH tab to browse its files." Style="{StaticResource Text.Hint}" Margin="14" VerticalAlignment="Top"/>
+                        </Grid>
+                    </DockPanel>
+
+                    <!-- Macros panel -->
+                    <DockPanel x:Name="MacrosPanel" Visibility="Collapsed">
+                        <DockPanel DockPanel.Dock="Top" Margin="12,10,8,4">
+                            <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                <Button Style="{StaticResource Button.Ghost}" ToolTip="New macro" Click="NewMacro_Click"><TextBlock Text="&#xE710;" Style="{StaticResource Icon}" FontSize="12"/></Button>
+                                <ToggleButton x:Name="RecordToggle" ToolTip="Record a macro from what you type in the active terminal" Click="Record_Click"><TextBlock Text="&#xE7C8;" Style="{StaticResource Icon}" FontSize="12" Foreground="{DynamicResource Danger}"/></ToggleButton>
+                            </StackPanel>
+                            <TextBlock Text="MACROS" Style="{StaticResource Text.Section}" Margin="0" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <TextBlock DockPanel.Dock="Bottom" Text="Double-click to run in the active terminal. Right-click to edit." Style="{StaticResource Text.Hint}" Margin="12,6,12,10"/>
+                        <ListBox x:Name="MacroList" Margin="6,0" MouseDoubleClick="MacroList_MouseDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding Hotkey}" Foreground="{DynamicResource Fg.Muted}" FontSize="11" VerticalAlignment="Center"/>
+                                        <TextBlock Text="&#xE768;" FontFamily="{DynamicResource IconFont}" FontSize="12" Margin="0,0,8,0" VerticalAlignment="Center" Foreground="{DynamicResource Accent}"/>
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"/>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Run" Click="RunMacro_Click"/>
+                                    <MenuItem Header="Run in all terminals of this tab" Click="RunMacroAll_Click"/>
+                                    <MenuItem Header="Edit…" Click="EditMacro_Click"/>
+                                    <MenuItem Header="Duplicate" Click="DuplicateMacro_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="Delete" Click="DeleteMacro_Click"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
+                    </DockPanel>
+
+                    <!-- Tunnels panel -->
+                    <DockPanel x:Name="TunnelsPanel" Visibility="Collapsed">
+                        <DockPanel DockPanel.Dock="Top" Margin="12,10,8,4">
+                            <Button DockPanel.Dock="Right" Style="{StaticResource Button.Ghost}" ToolTip="New tunnel" Click="NewTunnel_Click"><TextBlock Text="&#xE710;" Style="{StaticResource Icon}" FontSize="12"/></Button>
+                            <TextBlock Text="TUNNELS" Style="{StaticResource Text.Section}" Margin="0" VerticalAlignment="Center"/>
+                        </DockPanel>
+                        <TextBlock DockPanel.Dock="Bottom" Text="Standalone tunnels run without a terminal tab and reconnect automatically." Style="{StaticResource Text.Hint}" Margin="12,6,12,10"/>
+                        <ListBox x:Name="TunnelList" Margin="6,0" MouseDoubleClick="TunnelList_MouseDoubleClick">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate>
+                                    <DockPanel>
+                                        <Ellipse DockPanel.Dock="Left" Width="8" Height="8" Margin="0,0,9,0" VerticalAlignment="Center" Fill="{Binding StatusBrush}"/>
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Name}"/>
+                                            <TextBlock Text="{Binding Detail}" FontSize="11" Foreground="{DynamicResource Fg.Muted}" TextTrimming="CharacterEllipsis"/>
+                                        </StackPanel>
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                            <ListBox.ContextMenu>
+                                <ContextMenu>
+                                    <MenuItem Header="Start / stop" Click="ToggleTunnel_Click"/>
+                                    <MenuItem Header="Edit…" Click="EditTunnel_Click"/>
+                                    <Separator/>
+                                    <MenuItem Header="Delete" Click="DeleteTunnel_Click"/>
+                                </ContextMenu>
+                            </ListBox.ContextMenu>
+                        </ListBox>
+                    </DockPanel>
+                </Grid>
+            </Border>
+            <GridSplitter x:Name="SidebarSplitter" Grid.Column="2" HorizontalAlignment="Stretch" Background="{DynamicResource Border.Default}" DragCompleted="SidebarSplitter_DragCompleted"/>
+
+            <!-- Workspace -->
+            <Grid Grid.Column="3">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="36"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <Border Background="{DynamicResource Bg.Chrome}" BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,0,0,1">
+                    <DockPanel>
+                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Ghost}" Margin="2,0,6,0" ToolTip="All tabs" Click="TabList_Click"><TextBlock Text="&#xE70D;" Style="{StaticResource Icon}" FontSize="11"/></Button>
+                        <ScrollViewer x:Name="TabScroller" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="TabScroller_PreviewMouseWheel">
+                            <StackPanel Orientation="Horizontal">
+                                <ItemsControl x:Name="TabStrip">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border x:Name="TabBorder" Height="36" MinWidth="120" MaxWidth="240" Padding="10,0,4,0" Background="{DynamicResource Bg.TabInactive}"
+                                                    BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,0,1,0" Cursor="Hand"
+                                                    MouseLeftButtonDown="Tab_MouseLeftButtonDown" MouseDown="Tab_MouseDown" MouseMove="Tab_MouseMove" AllowDrop="True" Drop="Tab_Drop" ToolTip="{Binding Header}">
+                                                <Grid>
+                                                    <Border x:Name="ColorStripe" Height="2" VerticalAlignment="Top" Margin="-10,0,-4,0" Background="{Binding TabColor, FallbackValue=Transparent, TargetNullValue=Transparent}"/>
+                                                    <DockPanel>
+                                                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Ghost}" MinWidth="22" MinHeight="22" Padding="4" Margin="4,0,0,0" Click="TabClose_Click" ToolTip="Close (Ctrl+W)">
+                                                            <TextBlock Text="&#xE711;" FontFamily="{DynamicResource IconFont}" FontSize="9"/>
+                                                        </Button>
+                                                        <Ellipse x:Name="StateDot" Width="7" Height="7" Margin="0,0,8,0" VerticalAlignment="Center" Fill="{DynamicResource Fg.Muted}"/>
+                                                        <TextBlock x:Name="TabTitle" Text="{Binding Header}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{DynamicResource Fg.Secondary}"/>
+                                                    </DockPanel>
+                                                </Grid>
+                                            </Border>
+                                            <DataTemplate.Triggers>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource Bg.TabActive}"/>
+                                                    <Setter TargetName="TabTitle" Property="Foreground" Value="{DynamicResource Fg.Primary}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding State}" Value="Connected">
+                                                    <Setter TargetName="StateDot" Property="Fill" Value="{DynamicResource Success}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding State}" Value="Connecting">
+                                                    <Setter TargetName="StateDot" Property="Fill" Value="{DynamicResource Warning}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding State}" Value="Failed">
+                                                    <Setter TargetName="StateDot" Property="Fill" Value="{DynamicResource Danger}"/>
+                                                </DataTrigger>
+                                            </DataTemplate.Triggers>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <Button Style="{StaticResource Button.Ghost}" Margin="4,0" ToolTip="New tab: local terminal (Ctrl+Shift+T). Right-click for more." Click="LocalTerminal_Click" MouseRightButtonUp="NewTabButton_RightClick">
+                                    <TextBlock Text="&#xE710;" Style="{StaticResource Icon}" FontSize="12"/>
+                                </Button>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+                <Grid x:Name="TabHost" Grid.Row="1">
+                    <!-- Home screen, shown when no tabs are open -->
+                    <ScrollViewer x:Name="HomeView" VerticalScrollBarVisibility="Auto">
+                        <StackPanel MaxWidth="820" Margin="40,36,40,36">
+                            <TextBlock Text="Welcome to SessionForge" FontSize="26" FontWeight="SemiBold"/>
+                            <TextBlock Text="SSH, SFTP, RDP, VNC, Telnet, serial and local terminals in one place." Foreground="{DynamicResource Fg.Secondary}" Margin="0,6,0,24" FontSize="14"/>
+                            <UniformGrid Columns="4" Margin="0,0,0,26">
+                                <Button Margin="0,0,10,0" Padding="14" Click="NewSession_Click" HorizontalContentAlignment="Left">
+                                    <StackPanel>
+                                        <TextBlock Text="&#xE710;" Style="{StaticResource Icon}" FontSize="20" HorizontalAlignment="Left" Foreground="{DynamicResource Accent}"/>
+                                        <TextBlock Text="New session" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                        <TextBlock Text="SSH, RDP, VNC, serial…" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Margin="0,0,10,0" Padding="14" Click="LocalTerminal_Click" HorizontalContentAlignment="Left">
+                                    <StackPanel>
+                                        <TextBlock Text="&#xE756;" Style="{StaticResource Icon}" FontSize="20" HorizontalAlignment="Left" Foreground="{DynamicResource Accent}"/>
+                                        <TextBlock Text="Local terminal" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                        <TextBlock Text="PowerShell, cmd, WSL" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Margin="0,0,10,0" Padding="14" Click="ImportOpenSsh_Click" HorizontalContentAlignment="Left">
+                                    <StackPanel>
+                                        <TextBlock Text="&#xE8B5;" Style="{StaticResource Icon}" FontSize="20" HorizontalAlignment="Left" Foreground="{DynamicResource Accent}"/>
+                                        <TextBlock Text="Import ~/.ssh/config" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                        <TextBlock Text="Hosts, keys, jump hosts" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Padding="14" Click="ImportPutty_Click" HorizontalContentAlignment="Left">
+                                    <StackPanel>
+                                        <TextBlock Text="&#xE8B5;" Style="{StaticResource Icon}" FontSize="20" HorizontalAlignment="Left" Foreground="{DynamicResource Accent}"/>
+                                        <TextBlock Text="Import PuTTY" FontWeight="SemiBold" Margin="0,10,0,2"/>
+                                        <TextBlock Text="Saved sessions" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5"/>
+                                    </StackPanel>
+                                </Button>
+                            </UniformGrid>
+                            <TextBlock Text="RECENT SESSIONS" Style="{StaticResource Text.Section}"/>
+                            <ItemsControl x:Name="RecentList">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Button Margin="0,0,0,6" Padding="12,8" HorizontalContentAlignment="Stretch" Click="Recent_Click" Tag="{Binding}">
+                                            <DockPanel>
+                                                <TextBlock DockPanel.Dock="Right" Text="{Binding LastConnected, StringFormat='{}{0:g}'}" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Host}" Foreground="{DynamicResource Fg.Muted}" Margin="12,0,0,0" VerticalAlignment="Center"/>
+                                            </DockPanel>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock x:Name="NoRecent" Text="No sessions yet. Create one, or import from OpenSSH / PuTTY." Style="{StaticResource Text.Hint}"/>
+                            <TextBlock Text="KEYBOARD" Style="{StaticResource Text.Section}" Margin="0,24,0,6"/>
+                            <TextBlock Style="{StaticResource Text.Hint}" FontFamily="{DynamicResource MonoFont}" FontSize="12" xml:space="preserve">Ctrl+Shift+N  new session       Ctrl+Shift+T  local terminal     Ctrl+Shift+W  close pane/tab
+Ctrl+Tab      next tab          Ctrl+Shift+D  split right        Ctrl+Shift+E  split down
+Ctrl+Shift+F  find in terminal  Ctrl+Shift+C  copy               Ctrl+Shift+V  paste
+Ctrl+Shift+M  multi-execution   Alt+Arrows    move between panes Ctrl+Shift+K  quick connect
+F11           full screen       Shift+PgUp/Dn scroll back        Ctrl+wheel    zoom</TextBlock>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+                <!-- Notification toast -->
+                <Border x:Name="Toast" Grid.Row="1" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,24,20" Padding="14,10" CornerRadius="8"
+                        Background="{DynamicResource Bg.Elevated}" BorderBrush="{DynamicResource Border.Strong}" BorderThickness="1" Visibility="Collapsed" MaxWidth="460" IsHitTestVisible="False">
+                    <Border.Effect>
+                        <DropShadowEffect BlurRadius="16" ShadowDepth="3" Opacity="0.35"/>
+                    </Border.Effect>
+                    <TextBlock x:Name="ToastText" TextWrapping="Wrap"/>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ================= Status bar ================= -->
+        <Border Grid.Row="2" x:Name="StatusBar" Background="{DynamicResource Bg.Chrome}" BorderBrush="{DynamicResource Border.Default}" BorderThickness="0,1,0,0" Height="26">
+            <DockPanel Margin="10,0">
+                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                    <TextBlock x:Name="ForwardStatus" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                    <TextBlock x:Name="VaultStatus" Foreground="{DynamicResource Fg.Muted}" FontSize="11.5" VerticalAlignment="Center"/>
+                </StackPanel>
+                <TextBlock x:Name="StatusText" Foreground="{DynamicResource Fg.Secondary}" FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </DockPanel>
+        </Border>
+    </Grid>
+</Window>
